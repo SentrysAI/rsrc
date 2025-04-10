@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
 
-	"github.com/akavel/rsrc/binutil"
-	"github.com/akavel/rsrc/coff"
-	"github.com/akavel/rsrc/ico"
+	"github.com/SentrysAI/rsrc/binutil"
+	"github.com/SentrysAI/rsrc/coff"
+	"github.com/SentrysAI/rsrc/ico"
 	"github.com/josephspurrier/goversioninfo"
 )
 
@@ -130,6 +131,7 @@ void ·get_NAME(Slice a) {
 }
 
 func run(fnamein, fnameico, fnameversion, fnameout, arch string) error {
+	fmt.Println("fnameversion: ", fnameversion)
 	newid := make(chan uint16)
 	go func() {
 		for i := uint16(1); ; i++ {
@@ -164,7 +166,7 @@ func run(fnamein, fnameico, fnameversion, fnameout, arch string) error {
 	}
 
 	if fnameversion != "" {
-		err := addVersion(coff, fnameversion, newid)
+		err := addVersion(coff, fnameversion)
 		if err != nil {
 			return err
 		}
@@ -208,11 +210,11 @@ func addicon(coff *coff.Coff, fname string, newid <-chan uint16) error {
 	return nil
 }
 
-func addVersion(coff *coff.Coff, fname string, newid <-chan uint16) error {
+func addVersion(coff *coff.Coff, fname string) error {
 	// Open the config file
 	input, err := os.Open(fname)
 	if err != nil {
-		//log.Printf("Cannot open %q: %v", configFile, err)
+		log.Printf("Cannot open %q: %v", input, err)
 		return err
 	}
 
@@ -220,7 +222,7 @@ func addVersion(coff *coff.Coff, fname string, newid <-chan uint16) error {
 	jsonBytes, err := ioutil.ReadAll(input)
 	input.Close()
 	if err != nil {
-		//log.Printf("Error reading %q: %v", configFile, err)
+		log.Printf("Error reading %q: %v", input, err)
 		return err
 	}
 
@@ -229,7 +231,7 @@ func addVersion(coff *coff.Coff, fname string, newid <-chan uint16) error {
 
 	// Parse the config
 	if err := vi.ParseJSON(jsonBytes); err != nil {
-		//log.Printf("Could not parse the .json file: %v", err)
+		log.Printf("Could not parse the .json file: %v", err)
 		return err
 	}
 
@@ -239,11 +241,9 @@ func addVersion(coff *coff.Coff, fname string, newid <-chan uint16) error {
 	// Write the data to a buffer
 	vi.Walk()
 
-	id := <-newid
-
 	// ID 16 is for Version Information
-	coff.AddResource(RT_VERSION, id, goversioninfo.SizedReader{&vi.Buffer})
-
+	coff.AddResource(RT_VERSION, 1, goversioninfo.SizedReader{&vi.Buffer})
+	fmt.Println("Version ", fname, "ID:  1")
 	return nil
 }
 
